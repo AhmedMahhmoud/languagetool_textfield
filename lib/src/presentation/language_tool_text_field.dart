@@ -6,104 +6,39 @@ import 'package:languagetool_textfield/src/utils/popup_overlay_renderer.dart';
 /// A TextFormField widget that checks grammar using the given
 /// [LanguageToolController]
 class LanguageToolTextField extends StatefulWidget {
-  /// A title to display above the text field.
   final String? title;
-
-  /// Hint text to display when the field is empty.
   final String hintText;
-
-  /// Optional external controller to sync with internal logic.
   final TextEditingController? controller;
-
-  /// A style to use for the text being edited.
   final TextStyle? style;
-
-  /// A decoration of this [TextFormField].
   final InputDecoration? decoration;
-
-  /// Mistake popup window.
   final MistakePopup? mistakePopup;
-
-  /// The maximum number of lines to show at one time, wrapping if necessary.
   final int? maxLines;
-
-  /// The maximum number of characters to allow.
   final int? maxLength;
-
-  /// The minimum number of lines to occupy when the content spans fewer lines.
   final int? minLines;
-
-  /// Whether this widget's height will be sized to fill its parent.
   final bool expands;
-
-  /// A language code like en-US, de-DE, fr, or auto to guess
-  /// the language automatically.
   final String language;
-
-  /// Determine text alignment.
   final TextAlign textAlign;
-
-  /// Determine text direction.
   final TextDirection? textDirection;
-
-  /// Called when the text changes.
   final ValueChanged<String>? onChanged;
-
-  /// Called when the user submits the text (e.g., presses enter).
   final ValueChanged<String>? onSubmitted;
-
-  /// Called when the text field is tapped.
   final VoidCallback? onTap;
-
-  /// Called when the text field is tapped outside.
   final TapRegionCallback? onTapOutside;
-
-  /// The action to suggest when the user submits the text.
   final TextInputAction? textInputAction;
-
-  /// The type of keyboard to use.
   final TextInputType? keyboardType;
-
-  /// The color of the cursor.
   final Color? cursorColor;
-
-  /// Whether to autofocus the field.
   final bool autoFocus;
-
-  /// The focus node to use.
   final FocusNode? focusNode;
-
-  /// The appearance of the keyboard.
   final Brightness? keyboardAppearance;
-
-  /// Whether to enable autocorrect.
   final bool autocorrect;
-
-  /// Whether the field is read-only.
   final bool readOnly;
-
-  /// The mouse cursor to display.
   final MouseCursor? mouseCursor;
-
-  /// Whether to center the text field.
   final bool alignCenter;
-
-  /// Initial value of the text field.
   final String? initialValue;
-
-  /// Widget to display at the end of the text field.
   final Widget? suffixIcon;
-
-  /// Whether to enable form validation.
   final bool enableValidation;
-
-  /// Custom validation function.
   final String? Function(String?)? customValidator;
-
-  /// Border side for the enabled state.
   final BorderSide? borderSide;
 
-  /// Creates a widget that checks grammar errors.
   const LanguageToolTextField({
     required this.language,
     this.title,
@@ -148,39 +83,48 @@ class _LanguageToolTextFieldState extends State<LanguageToolTextField> {
   FocusNode? _focusNode;
   final _scrollController = ScrollController();
   late LanguageToolController _languageToolController;
-  late TextEditingController _internalController;
+  TextEditingController? _externalController;
 
   @override
   void initState() {
     super.initState();
 
-    // Initialize controllers
-    _internalController = widget.controller ??
-        TextEditingController(text: widget.initialValue ?? '');
+    // Initialize _languageToolController as the primary controller
     _languageToolController = LanguageToolController(
-      text: _internalController.text,
+      text: widget.initialValue ?? widget.controller?.text ?? '',
     );
+
+    // Sync with external controller if provided
+    _externalController = widget.controller;
+    if (_externalController != null) {
+      _externalController!.text = _languageToolController.text;
+      _externalController!.addListener(() {
+        if (_languageToolController.text != _externalController!.text) {
+          _languageToolController.text = _externalController!.text;
+        }
+      });
+      _languageToolController.addListener(() {
+        if (_externalController!.text != _languageToolController.text) {
+          _externalController!.text = _languageToolController.text;
+          if (widget.onChanged != null) {
+            widget.onChanged!(_languageToolController.text);
+          }
+        }
+        _textControllerListener();
+      });
+    } else {
+      _languageToolController.addListener(() {
+        if (widget.onChanged != null) {
+          widget.onChanged!(_languageToolController.text);
+        }
+        _textControllerListener();
+      });
+    }
 
     _focusNode = widget.focusNode ?? FocusNode();
     _languageToolController.focusNode = _focusNode;
     final defaultPopup = MistakePopup(popupRenderer: PopupOverlayRenderer());
     _languageToolController.popupWidget = widget.mistakePopup ?? defaultPopup;
-
-    // Sync controllers
-    _internalController.addListener(() {
-      if (_languageToolController.text != _internalController.text) {
-        _languageToolController.text = _internalController.text;
-      }
-    });
-    _languageToolController.addListener(() {
-      if (_internalController.text != _languageToolController.text) {
-        _internalController.text = _languageToolController.text;
-        if (widget.onChanged != null) {
-          widget.onChanged!(_languageToolController.text);
-        }
-      }
-      _textControllerListener();
-    });
   }
 
   @override
@@ -248,7 +192,8 @@ class _LanguageToolTextFieldState extends State<LanguageToolTextField> {
               textAlign: widget.textAlign,
               textDirection: widget.textDirection ?? TextDirection.rtl,
               focusNode: _focusNode,
-              controller: _internalController,
+              controller:
+                  _languageToolController, // Use _languageToolController directly
               scrollController: _scrollController,
               decoration: inputDecoration,
               minLines: widget.minLines,
@@ -301,10 +246,9 @@ class _LanguageToolTextFieldState extends State<LanguageToolTextField> {
       _focusNode?.dispose();
     }
     if (widget.controller == null) {
-      _internalController.dispose();
+      _languageToolController.dispose();
     }
     _scrollController.dispose();
-    _languageToolController.dispose();
     super.dispose();
   }
 }

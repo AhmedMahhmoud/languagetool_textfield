@@ -22,7 +22,7 @@ class LanguageToolClient {
   String language;
 
   /// Constructor for [LanguageToolClient].
-  LanguageToolClient({this.language = 'auto'});
+  LanguageToolClient({this.language = 'ar'});
 
   /// Checks the errors in text.
   Future<List<WritingMistake>> check(String text) async {

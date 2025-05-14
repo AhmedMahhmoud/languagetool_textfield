@@ -17,61 +17,25 @@ import 'package:languagetool_textfield/src/utils/mistake_popup.dart';
 /// A TextEditingController with overrides buildTextSpan for building
 /// marked TextSpans with tap recognizer
 class LanguageToolController extends TextEditingController {
-  /// Color scheme to highlight mistakes
   final HighlightStyle highlightStyle;
-
-  /// Represents the type of delay for language checking.
-  ///
-  /// [DelayType.debouncing] - Calls a function when a user hasn't carried out
-  /// the event in a specific amount of time.
-  ///
-  /// [DelayType.throttling] - Calls a function at intervals of a specified
-  /// amount of time while the user is carrying out the event.
   final DelayType delayType;
-
-  /// Represents the duration of the delay for language checking.
-  ///
-  /// If the delay is [Duration.zero], no delaying is applied.
   final Duration delay;
-
-  /// Create an instance of [LanguageToolClient] instance
   final _languageToolClient = LanguageToolClient();
-
-  /// Create an instance of [KeepLatestResponseService]
-  /// to handle asynchronous operations
   final _latestResponseService = KeepLatestResponseService();
-
-  /// List of that is used to dispose recognizers after mistakes rebuilt
   final List<TapGestureRecognizer> _recognizers = [];
-
-  /// Language tool API index
   LanguageCheckService? _languageCheckService;
-
-  /// Reference to the focus of the LanguageTool TextField
   FocusNode? focusNode;
-
-  /// List which contains Mistake objects spans are built from
   List<Mistake> _mistakes = [];
-
-  /// Reference to the popup widget
   MistakePopup? popupWidget;
-
-  /// Represents the scroll offset value of the LanguageTool TextField.
   double? scrollOffset;
-
   Object? _fetchError;
 
-  /// The language used for spellchecking in the text field.
-  ///
-  /// A language code like en-US, de-DE, fr, or auto to guess
-  /// the language automatically.
   String get language => _languageToolClient.language;
 
   set language(String language) {
     _languageToolClient.language = language;
   }
 
-  /// An error that may have occurred during the API fetch.
   Object? get fetchError => _fetchError;
 
   @override
@@ -80,14 +44,12 @@ class LanguageToolController extends TextEditingController {
     super.value = newValue;
   }
 
-  /// Controller constructor
   LanguageToolController({
-    String? text, // Added text parameter
+    String? text,
     this.highlightStyle = const HighlightStyle(),
     this.delay = Duration.zero,
     this.delayType = DelayType.debouncing,
   }) : super(text: text) {
-    // Initialize base class with text
     _languageCheckService = _getLanguageCheckService();
   }
 
@@ -104,10 +66,8 @@ class LanguageToolController extends TextEditingController {
     }
   }
 
-  /// Close the popup widget
   void _closePopup() => popupWidget?.popupRenderer.dismiss();
 
-  /// Generates TextSpan from Mistake list
   @override
   TextSpan buildTextSpan({
     required BuildContext context,
@@ -130,7 +90,6 @@ class LanguageToolController extends TextEditingController {
     super.dispose();
   }
 
-  /// Replaces mistake with given replacement
   void replaceMistake(Mistake mistake, String replacement) {
     final mistakes = List<Mistake>.from(_mistakes);
     mistakes.remove(mistake);
@@ -143,18 +102,15 @@ class LanguageToolController extends TextEditingController {
     });
   }
 
-  /// Clear mistakes list when text mas modified and get a new list of mistakes
-  /// via API
   Future<void> _handleTextChange(String newText) async {
-    ///set value triggers each time, even when cursor changes its location
-    ///so this check avoid cleaning Mistake list when text wasn't really changed
     if (newText == text || newText.isEmpty) return;
+
+    print(
+        'LanguageToolController: Handling text change for "$newText"'); // Debug log
 
     final filteredMistakes = _filterMistakesOnChanged(newText);
     _mistakes = filteredMistakes.toList();
 
-    // If we have a text change and we have a popup on hold
-    // it will close the popup
     _closePopup();
 
     for (final recognizer in _recognizers) {
@@ -162,24 +118,43 @@ class LanguageToolController extends TextEditingController {
     }
     _recognizers.clear();
 
-    final mistakesWrapper = await _latestResponseService.processLatestOperation(
-      () => _languageCheckService?.findMistakes(newText) ?? Future(() => null),
-    );
-    if (mistakesWrapper == null || !mistakesWrapper.hasResult) return;
+    try {
+      final mistakesWrapper =
+          await _latestResponseService.processLatestOperation(
+        () =>
+            _languageCheckService?.findMistakes(newText) ?? Future(() => null),
+      );
+      if (mistakesWrapper == null || !mistakesWrapper.hasResult) {
+        print('LanguageToolController: No result from API'); // Debug log
+        return;
+      }
 
-    final mistakes = mistakesWrapper.result();
-    _fetchError = mistakesWrapper.error;
+      final mistakes = mistakesWrapper.result();
+      _fetchError = mistakesWrapper.error;
 
-    _mistakes = mistakes;
-    notifyListeners();
+      if (_fetchError != null) {
+        print(
+            'LanguageToolController: Fetch error - $_fetchError'); // Debug log
+      } else {
+        print(
+            'LanguageToolController: Found ${mistakes.length} mistakes'); // Debug log
+      }
+
+      _mistakes = mistakes;
+      notifyListeners();
+    } catch (e) {
+      print(
+          'LanguageToolController: Error fetching mistakes - $e'); // Debug log
+      _fetchError = e;
+      notifyListeners();
+    }
   }
 
-  /// Generator function to create TextSpan instances
   Iterable<TextSpan> _generateSpans(
     BuildContext context, {
     TextStyle? style,
   }) sync* {
-    int currentOffset = 0; // enter index
+    int currentOffset = 0;
 
     _mistakes.sort((a, b) => a.offset.compareTo(b.offset));
 
@@ -188,7 +163,6 @@ class LanguageToolController extends TextEditingController {
           (mistake.endOffset < text.length) ? mistake.endOffset : text.length;
       if (mistake.offset > mistakeEndOffset) continue;
 
-      /// TextSpan before mistake
       yield TextSpan(
         text: text.substring(
           currentOffset,
@@ -197,12 +171,12 @@ class LanguageToolController extends TextEditingController {
         style: style,
       );
 
-      /// Get a highlight color
       final Color mistakeColor = _getMistakeColor(mistake.type);
 
-      /// Create a gesture recognizer for mistake
       final _onTap = TapGestureRecognizer()
         ..onTapDown = (details) {
+          print(
+              'LanguageToolController: Tapped on mistake: ${mistake.message}'); // Debug log
           popupWidget?.show(
             context,
             mistake: mistake,
@@ -215,7 +189,6 @@ class LanguageToolController extends TextEditingController {
             ),
           );
 
-          // Set the cursor position on the mistake
           _setCursorOnMistake(
             context,
             globalPosition: details.globalPosition,
@@ -223,10 +196,8 @@ class LanguageToolController extends TextEditingController {
           );
         };
 
-      /// Adding recognizer to the list for future disposing
       _recognizers.add(_onTap);
 
-      /// Mistake highlighted TextSpan
       yield TextSpan(
         children: [
           TextSpan(
@@ -256,15 +227,12 @@ class LanguageToolController extends TextEditingController {
 
     final textAfterMistake = text.substring(currentOffset);
 
-    /// TextSpan after mistake
     yield TextSpan(
       text: textAfterMistake,
       style: style,
     );
   }
 
-  /// Filters the list of mistakes based on the changes
-  /// in the text when it is changed.
   Iterable<Mistake> _filterMistakesOnChanged(String newText) sync* {
     final isSelectionRangeEmpty = selection.end == selection.start;
     final lengthDiscrepancy = newText.length - text.length;
@@ -286,7 +254,6 @@ class LanguageToolController extends TextEditingController {
     }
   }
 
-  /// Adjusts the mistake offset when the selection is a caret cursor.
   Mistake? _adjustMistakeOffsetWithCaretCursor({
     required Mistake mistake,
     required int lengthDiscrepancy,
@@ -294,8 +261,6 @@ class LanguageToolController extends TextEditingController {
     final mistakeRange = ClosedRange(mistake.offset, mistake.endOffset);
     final caretLocation = selection.base.offset;
 
-    // Don't highlight mistakes on changed text
-    // until we get an update from the API.
     final isCaretOnMistake = mistakeRange.contains(caretLocation);
     if (isCaretOnMistake) return null;
 
@@ -307,7 +272,6 @@ class LanguageToolController extends TextEditingController {
     return mistake.copyWith(offset: newOffset);
   }
 
-  /// Adjusts the mistake offset when the selection is a range.
   Mistake? _adjustMistakeOffsetWithSelectionRange({
     required Mistake mistake,
     required int lengthDiscrepancy,
@@ -326,7 +290,6 @@ class LanguageToolController extends TextEditingController {
     return mistake.copyWith(offset: newOffset);
   }
 
-  /// Returns color for mistake TextSpan style
   Color _getMistakeColor(MistakeType type) {
     switch (type) {
       case MistakeType.misspelling:
@@ -346,12 +309,6 @@ class LanguageToolController extends TextEditingController {
     }
   }
 
-  /// Sets the cursor position on a mistake within the text field based
-  /// on the provided [globalPosition].
-  ///
-  /// The [context] is used to find the render object associated
-  /// with the text field.
-  /// The [style] is an optional parameter to customize the text style.
   void _setCursorOnMistake(
     BuildContext context, {
     required Offset globalPosition,
@@ -368,7 +325,6 @@ class LanguageToolController extends TextEditingController {
     focusNode?.requestFocus();
     Future.microtask(() => selection = TextSelection.collapsed(offset: offset));
 
-    // Find the mistake within the text that corresponds to the offset
     final mistake = _mistakes.firstWhereOrNull(
       (e) => e.offset <= offset && offset < e.endOffset,
     );
@@ -377,7 +333,6 @@ class LanguageToolController extends TextEditingController {
 
     _closePopup();
 
-    // Show a popup widget with the mistake details
     popupWidget?.show(
       context,
       mistake: mistake,
@@ -391,14 +346,6 @@ class LanguageToolController extends TextEditingController {
     );
   }
 
-  /// Returns a valid text offset based on the provided [globalPosition]
-  /// within the text field.
-  ///
-  /// The [context] is used to find the render object associated
-  /// with the text field.
-  /// The [style] is an optional parameter to customize the text style.
-  /// Returns the offset within the text if it falls within the vertical bounds
-  /// of the text field, otherwise returns null.
   int? _getValidTextOffset(
     BuildContext context, {
     required Offset globalPosition,
@@ -411,8 +358,6 @@ class LanguageToolController extends TextEditingController {
 
     final textBoxHeight = textFieldRenderBox?.size.height ?? 0;
 
-    // If local offset is outside the vertical bounds of the text field,
-    // return null
     final isOffsetOutsideTextBox =
         localOffset.dy < 0 || textBoxHeight < localOffset.dy;
     if (isOffsetOutsideTextBox) return null;
@@ -435,14 +380,10 @@ class LanguageToolController extends TextEditingController {
     return textPainter.getPositionForOffset(adjustedOffset).offset;
   }
 
-  /// The `onClosePopup` function is a callback method typically used
-  /// when a popup or overlay is closed. Its purpose is to ensure a smooth user
-  /// experience by handling the behavior when the popup is dismissed
   void onClosePopup() {
     final offset = selection.base.offset;
     focusNode?.requestFocus();
 
-    // Delay the execution of the following code until the next microtask
     Future.microtask(
       () => selection = TextSelection.collapsed(offset: offset),
     );
