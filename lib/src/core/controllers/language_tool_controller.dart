@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -34,12 +36,15 @@ class LanguageToolController extends TextEditingController {
 
   set language(String language) {
     _languageToolClient.language = language;
+    print('LanguageToolController: Language set to $language'); // Debug log
   }
 
   Object? get fetchError => _fetchError;
 
   @override
   set value(TextEditingValue newValue) {
+    print(
+        'LanguageToolController: Setting value to "${newValue.text}"'); // Debug log
     _handleTextChange(newValue.text);
     super.value = newValue;
   }
@@ -103,7 +108,11 @@ class LanguageToolController extends TextEditingController {
   }
 
   Future<void> _handleTextChange(String newText) async {
-    if (newText == text || newText.isEmpty) return;
+    if (newText == text || newText.isEmpty) {
+      print(
+          'LanguageToolController: Skipping text change (unchanged or empty)'); // Debug log
+      return;
+    }
 
     print(
         'LanguageToolController: Handling text change for "$newText"'); // Debug log
@@ -119,6 +128,8 @@ class LanguageToolController extends TextEditingController {
     _recognizers.clear();
 
     try {
+      print(
+          'LanguageToolController: Fetching mistakes for language: $language'); // Debug log
       final mistakesWrapper =
           await _latestResponseService.processLatestOperation(
         () =>
@@ -138,6 +149,10 @@ class LanguageToolController extends TextEditingController {
       } else {
         print(
             'LanguageToolController: Found ${mistakes.length} mistakes'); // Debug log
+        for (var mistake in mistakes) {
+          print(
+              'Mistake: ${mistake.message}, Offset: ${mistake.offset}-${mistake.endOffset}'); // Debug log
+        }
       }
 
       _mistakes = mistakes;
@@ -159,14 +174,13 @@ class LanguageToolController extends TextEditingController {
     _mistakes.sort((a, b) => a.offset.compareTo(b.offset));
 
     for (final Mistake mistake in _mistakes) {
-      final mistakeEndOffset =
-          (mistake.endOffset < text.length) ? mistake.endOffset : text.length;
+      final mistakeEndOffset = min(mistake.endOffset, text.length);
       if (mistake.offset > mistakeEndOffset) continue;
 
       yield TextSpan(
         text: text.substring(
           currentOffset,
-          (mistake.offset < text.length) ? mistake.offset : text.length,
+          min(mistake.offset, text.length),
         ),
         style: style,
       );
@@ -203,9 +217,7 @@ class LanguageToolController extends TextEditingController {
           TextSpan(
             text: text.substring(
               mistake.offset,
-              (mistake.endOffset < text.length)
-                  ? mistake.endOffset
-                  : text.length,
+              min(mistake.endOffset, text.length),
             ),
             mouseCursor: WidgetStateMouseCursor.textable,
             style: style?.copyWith(
@@ -221,8 +233,7 @@ class LanguageToolController extends TextEditingController {
         ],
       );
 
-      currentOffset =
-          (mistake.endOffset < text.length) ? mistake.endOffset : text.length;
+      currentOffset = min(mistake.endOffset, text.length);
     }
 
     final textAfterMistake = text.substring(currentOffset);

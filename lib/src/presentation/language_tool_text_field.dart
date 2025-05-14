@@ -3,8 +3,6 @@ import 'package:languagetool_textfield/src/core/controllers/language_tool_contro
 import 'package:languagetool_textfield/src/utils/mistake_popup.dart';
 import 'package:languagetool_textfield/src/utils/popup_overlay_renderer.dart';
 
-/// A TextFormField widget that checks grammar using the given
-/// [LanguageToolController]
 class LanguageToolTextField extends StatefulWidget {
   final String? title;
   final String hintText;
@@ -89,12 +87,18 @@ class _LanguageToolTextFieldState extends State<LanguageToolTextField> {
   void initState() {
     super.initState();
 
-    // Initialize _languageToolController as the primary controller
     _languageToolController = LanguageToolController(
       text: widget.initialValue ?? widget.controller?.text ?? '',
     );
 
-    // Sync with external controller if provided
+    // Set language and handle Arabic support
+    _languageToolController.language = widget.language;
+    if (widget.language.startsWith('ar') &&
+        _languageToolController.fetchError != null) {
+      print('Falling back to auto language due to Arabic fetch error');
+      _languageToolController.language = 'auto';
+    }
+
     _externalController = widget.controller;
     if (_externalController != null) {
       _externalController!.text = _languageToolController.text;
@@ -192,8 +196,7 @@ class _LanguageToolTextFieldState extends State<LanguageToolTextField> {
               textAlign: widget.textAlign,
               textDirection: widget.textDirection ?? TextDirection.rtl,
               focusNode: _focusNode,
-              controller:
-                  _languageToolController, // Use _languageToolController directly
+              controller: _languageToolController,
               scrollController: _scrollController,
               decoration: inputDecoration,
               minLines: widget.minLines,
