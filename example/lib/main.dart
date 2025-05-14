@@ -39,7 +39,7 @@ class _AppState extends State<App> {
           children: [
             LanguageToolTextField(
               controller: _controller,
-              language: 'en-US',
+              language: 'ar',
             ),
             DropdownMenu(
               hintText: "Select alignment...",

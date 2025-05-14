@@ -156,7 +156,7 @@ class LanguageToolMistakePopup extends StatelessWidget {
                                 package: 'languagetool_textfield',
                               ),
                             ),
-                            const Text('Correct'),
+                            const Text('تصحيح'),
                           ],
                         ),
                       ),
@@ -187,20 +187,6 @@ class LanguageToolMistakePopup extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            bottom: _paddingBetweenTitle,
-                          ),
-                          child: Text(
-                            mistake.type.name.capitalize(),
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontSize: _mistakeNameFontSize,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: _titleLetterSpacing,
-                            ),
-                          ),
-                        ),
                         Padding(
                           padding: const EdgeInsets.only(bottom: padding),
                           child: Text(

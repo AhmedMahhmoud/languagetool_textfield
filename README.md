@@ -50,7 +50,7 @@ child: LanguageToolTextField(
   // A language code like en-US, de-DE, fr, or auto to guess
   // the language automatically.
   // language = 'auto' by default.
-  language: 'en-US',
+  language: 'ar',
 );
 
 // Don't forget to dispose the controller

@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:collection/collection.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -84,10 +82,12 @@ class LanguageToolController extends TextEditingController {
 
   /// Controller constructor
   LanguageToolController({
+    String? text, // Added text parameter
     this.highlightStyle = const HighlightStyle(),
     this.delay = Duration.zero,
     this.delayType = DelayType.debouncing,
-  }) {
+  }) : super(text: text) {
+    // Initialize base class with text
     _languageCheckService = _getLanguageCheckService();
   }
 
@@ -184,14 +184,15 @@ class LanguageToolController extends TextEditingController {
     _mistakes.sort((a, b) => a.offset.compareTo(b.offset));
 
     for (final Mistake mistake in _mistakes) {
-      final mistakeEndOffset = min(mistake.endOffset, text.length);
+      final mistakeEndOffset =
+          (mistake.endOffset < text.length) ? mistake.endOffset : text.length;
       if (mistake.offset > mistakeEndOffset) continue;
 
       /// TextSpan before mistake
       yield TextSpan(
         text: text.substring(
           currentOffset,
-          min(mistake.offset, text.length),
+          (mistake.offset < text.length) ? mistake.offset : text.length,
         ),
         style: style,
       );
@@ -231,7 +232,9 @@ class LanguageToolController extends TextEditingController {
           TextSpan(
             text: text.substring(
               mistake.offset,
-              min(mistake.endOffset, text.length),
+              (mistake.endOffset < text.length)
+                  ? mistake.endOffset
+                  : text.length,
             ),
             mouseCursor: WidgetStateMouseCursor.textable,
             style: style?.copyWith(
@@ -247,7 +250,8 @@ class LanguageToolController extends TextEditingController {
         ],
       );
 
-      currentOffset = min(mistake.endOffset, text.length);
+      currentOffset =
+          (mistake.endOffset < text.length) ? mistake.endOffset : text.length;
     }
 
     final textAfterMistake = text.substring(currentOffset);
