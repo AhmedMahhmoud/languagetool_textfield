@@ -66,7 +66,7 @@ class LanguageToolController extends TextEditingController {
   LanguageCheckService _getLanguageCheckService() {
     // Create base service with OpenAI integration
     final aiService = AiSuggestionFactory.createService(
-        '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');
+        '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');
     // Since aiService is already nullable (AiSuggestionService?), we can pass it directly
     final languageToolService = LangToolService(
       _languageToolClient,
