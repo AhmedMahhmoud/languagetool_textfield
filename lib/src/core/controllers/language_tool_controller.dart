@@ -33,7 +33,6 @@ class LanguageToolController extends TextEditingController {
   final List<TapGestureRecognizer> _recognizers = [];
   LanguageCheckService? _languageCheckService;
   FocusNode? focusNode;
-  final String? aiKey;
   List<Mistake> _mistakes = [];
   MistakePopup? popupWidget;
   double? scrollOffset;
@@ -58,14 +57,13 @@ class LanguageToolController extends TextEditingController {
 
   LanguageToolController({
     String? text,
-    this.aiKey,
     this.highlightStyle = const HighlightStyle(),
     this.delay = Duration.zero,
     this.delayType = DelayType.debouncing,
   }) : super(text: text) {
-    _languageCheckService = _getLanguageCheckService(aiKey!);
+    _languageCheckService = _getLanguageCheckService();
   }
-  LanguageCheckService _getLanguageCheckService(String aiKey) {
+  LanguageCheckService _getLanguageCheckService() {
     // Create base service with OpenAI integration
     final aiService = AiSuggestionFactory.createService(
         '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');
