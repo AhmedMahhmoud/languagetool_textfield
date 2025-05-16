@@ -36,6 +36,27 @@ import 'package:languagetool_textfield/languagetool_textfield.dart';
 ```
 
 
+## AI-Powered Suggestions
+
+This package supports AI-powered suggestions using OpenAI's GPT models for enhanced Arabic text correction. To enable this feature:
+
+1. Get an OpenAI API key from [OpenAI's platform](https://platform.openai.com)
+2. Set up your API key using one of these methods:
+   - Environment variable: Set `OPENAI_API_KEY` in your environment
+   - Runtime configuration: Pass the key when creating the controller
+
+```dart
+// Method 1: Use environment variable
+final controller = LanguageToolController();
+
+// Method 2: Pass API key directly
+final controller = LanguageToolController(
+  openAiKey: 'your-api-key-here'
+);
+```
+
+If no API key is provided, the package will fall back to basic suggestion mode.
+
 ## Quick Start
 To start using the plugin, copy this code or follow the example project in 'languagetool_textfield/example'
 
