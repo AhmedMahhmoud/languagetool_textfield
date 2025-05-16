@@ -196,11 +196,13 @@ class LanguageToolController extends TextEditingController {
       // Yield the mistake text with appropriate styling
       yield TextSpan(
         text: text.substring(mistake.offset, mistakeEndOffset),
-        style: TextStyle(
+        style: (style ?? const TextStyle()).merge(TextStyle(
           color: _getMistakeColor(mistake.type),
-          decoration: TextDecoration.underline,
+          decoration: highlightStyle.decoration,
           decorationStyle: TextDecorationStyle.wavy,
-        ).merge(style),
+          decorationColor: _getMistakeColor(mistake.type),
+          decorationThickness: highlightStyle.mistakeLineThickness,
+        )),
         recognizer: recognizer,
       );
 
