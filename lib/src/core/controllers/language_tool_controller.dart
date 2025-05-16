@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import 'package:collection/collection.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:languagetool_textfield/src/client/language_tool_client.dart';
@@ -170,78 +169,51 @@ class LanguageToolController extends TextEditingController {
     TextStyle? style,
   }) sync* {
     int currentOffset = 0;
-
     _mistakes.sort((a, b) => a.offset.compareTo(b.offset));
 
     for (final Mistake mistake in _mistakes) {
       final mistakeEndOffset = min(mistake.endOffset, text.length);
       if (mistake.offset > mistakeEndOffset) continue;
 
-      yield TextSpan(
-        text: text.substring(
-          currentOffset,
-          min(mistake.offset, text.length),
-        ),
-        style: style,
-      );
+      // Yield text before the mistake
+      if (mistake.offset > currentOffset) {
+        yield TextSpan(
+          text: text.substring(currentOffset, mistake.offset),
+          style: style,
+        );
+      }
 
-      final Color mistakeColor = _getMistakeColor(mistake.type);
-
-      final _onTap = TapGestureRecognizer()
-        ..onTapDown = (details) {
-          print(
-              'LanguageToolController: Tapped on mistake: ${mistake.message}'); // Debug log
-          popupWidget?.show(
-            context,
-            mistake: mistake,
-            popupPosition: details.globalPosition,
-            controller: this,
-            onClose: (details) => _setCursorOnMistake(
+      // Create tap recognizer for the mistake
+      final recognizer = TapGestureRecognizer()
+        ..onTapDown = (details) => _handleMistakeTap(
               context,
-              globalPosition: details.globalPosition,
-              style: style,
-            ),
-          );
+              mistake,
+              details,
+              style,
+            );
+      _recognizers.add(recognizer);
 
-          _setCursorOnMistake(
-            context,
-            globalPosition: details.globalPosition,
-            style: style,
-          );
-        };
-
-      _recognizers.add(_onTap);
-
+      // Yield the mistake text with appropriate styling
       yield TextSpan(
-        children: [
-          TextSpan(
-            text: text.substring(
-              mistake.offset,
-              min(mistake.endOffset, text.length),
-            ),
-            mouseCursor: WidgetStateMouseCursor.textable,
-            style: style?.copyWith(
-              backgroundColor: mistakeColor.withOpacity(
-                highlightStyle.backgroundOpacity,
-              ),
-              decoration: highlightStyle.decoration,
-              decorationColor: mistakeColor,
-              decorationThickness: highlightStyle.mistakeLineThickness,
-            ),
-            recognizer: _onTap,
-          ),
-        ],
+        text: text.substring(mistake.offset, mistakeEndOffset),
+        style: TextStyle(
+          color: _getMistakeColor(mistake.type),
+          decoration: TextDecoration.underline,
+          decorationStyle: TextDecorationStyle.wavy,
+        ).merge(style),
+        recognizer: recognizer,
       );
 
-      currentOffset = min(mistake.endOffset, text.length);
+      currentOffset = mistakeEndOffset;
     }
 
-    final textAfterMistake = text.substring(currentOffset);
-
-    yield TextSpan(
-      text: textAfterMistake,
-      style: style,
-    );
+    // Yield any remaining text
+    if (currentOffset < text.length) {
+      yield TextSpan(
+        text: text.substring(currentOffset),
+        style: style,
+      );
+    }
   }
 
   Iterable<Mistake> _filterMistakesOnChanged(String newText) sync* {
@@ -325,70 +297,46 @@ class LanguageToolController extends TextEditingController {
     required Offset globalPosition,
     TextStyle? style,
   }) {
-    final offset = _getValidTextOffset(
-      context,
-      globalPosition: globalPosition,
-      style: style,
+    final RenderBox renderBox = context.findRenderObject() as RenderBox;
+    final localPosition = renderBox.globalToLocal(globalPosition);
+
+    // Get the TextPainter to calculate text positions
+    final TextPainter textPainter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+      maxLines: null,
     );
+    textPainter.layout();
 
-    if (offset == null) return;
+    // Find the closest text position to the tap
+    final offset = textPainter.getPositionForOffset(localPosition).offset;
 
+    // Ensure we don't exceed text bounds
+    final safeOffset = offset.clamp(0, text.length);
+
+    selection = TextSelection.fromPosition(TextPosition(offset: safeOffset));
     focusNode?.requestFocus();
-    Future.microtask(() => selection = TextSelection.collapsed(offset: offset));
+  }
 
-    final mistake = _mistakes.firstWhereOrNull(
-      (e) => e.offset <= offset && offset < e.endOffset,
-    );
-
-    if (mistake == null) return;
-
-    _closePopup();
-
+  void _handleMistakeTap(
+    BuildContext context,
+    Mistake mistake,
+    TapDownDetails details,
+    TextStyle? style,
+  ) {
+    print(
+        'LanguageToolController: Handling mistake tap at offset ${mistake.offset}');
     popupWidget?.show(
       context,
       mistake: mistake,
-      popupPosition: globalPosition,
+      popupPosition: details.globalPosition,
       controller: this,
-      onClose: (details) => _setCursorOnMistake(
+      onClose: (_) => _setCursorOnMistake(
         context,
         globalPosition: details.globalPosition,
         style: style,
       ),
     );
-  }
-
-  int? _getValidTextOffset(
-    BuildContext context, {
-    required Offset globalPosition,
-    TextStyle? style,
-  }) {
-    final textFieldRenderBox = context.findRenderObject() as RenderBox?;
-    final localOffset = textFieldRenderBox?.globalToLocal(globalPosition);
-
-    if (localOffset == null) return null;
-
-    final textBoxHeight = textFieldRenderBox?.size.height ?? 0;
-
-    final isOffsetOutsideTextBox =
-        localOffset.dy < 0 || textBoxHeight < localOffset.dy;
-    if (isOffsetOutsideTextBox) return null;
-
-    final textPainter = TextPainter(
-      text: TextSpan(text: text, style: style),
-      textDirection: TextDirection.ltr,
-    );
-    final textFieldWidth = textFieldRenderBox?.size.width ?? 0;
-    final scrollOffset = this.scrollOffset ?? 0;
-
-    double maxWidth = double.infinity;
-    if (scrollOffset == 0) maxWidth = textFieldWidth;
-
-    textPainter.layout(minWidth: textFieldWidth, maxWidth: maxWidth);
-
-    final adjustedOffset =
-        Offset(localOffset.dx + scrollOffset, localOffset.dy);
-
-    return textPainter.getPositionForOffset(adjustedOffset).offset;
   }
 
   void onClosePopup() {

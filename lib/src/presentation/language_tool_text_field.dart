@@ -226,7 +226,7 @@ class _LanguageToolTextFieldState extends State<LanguageToolTextField> {
                     }
                   : null,
               onTap: widget.onTap,
-              onTapOutside: widget.onTapOutside,
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
             );
 
             if (widget.alignCenter) {
