@@ -15,6 +15,13 @@ import 'package:languagetool_textfield/src/utils/closed_range.dart';
 import 'package:languagetool_textfield/src/utils/keep_latest_response_service.dart';
 import 'package:languagetool_textfield/src/utils/mistake_popup.dart';
 
+// Remove the following import if present anywhere in this file:
+// import 'package:languagetool_textfield/src/domain/ai_suggestion_service.dart';
+// Instead, ensure you import the correct one:
+import 'package:languagetool_textfield/src/services/ai_suggestion_service.dart';
+
+import '../../implementations/ai_suggestion_factory.dart';
+
 /// A TextEditingController with overrides buildTextSpan for building
 /// marked TextSpans with tap recognizer
 class LanguageToolController extends TextEditingController {
@@ -26,6 +33,7 @@ class LanguageToolController extends TextEditingController {
   final List<TapGestureRecognizer> _recognizers = [];
   LanguageCheckService? _languageCheckService;
   FocusNode? focusNode;
+  final String? aiKey;
   List<Mistake> _mistakes = [];
   MistakePopup? popupWidget;
   double? scrollOffset;
@@ -50,15 +58,21 @@ class LanguageToolController extends TextEditingController {
 
   LanguageToolController({
     String? text,
+    this.aiKey,
     this.highlightStyle = const HighlightStyle(),
     this.delay = Duration.zero,
     this.delayType = DelayType.debouncing,
   }) : super(text: text) {
-    _languageCheckService = _getLanguageCheckService();
+    _languageCheckService = _getLanguageCheckService(aiKey!);
   }
-
-  LanguageCheckService _getLanguageCheckService() {
-    final languageToolService = LangToolService(_languageToolClient);
+  LanguageCheckService _getLanguageCheckService(String aiKey) {
+    // Create base service with OpenAI integration
+    final aiService = AiSuggestionFactory.createService(aiKey);
+    // Since aiService is already nullable (AiSuggestionService?), we can pass it directly
+    final languageToolService = LangToolService(
+      _languageToolClient,
+      aiSuggestionService: aiService,
+    );
 
     if (delay == Duration.zero) return languageToolService;
 
@@ -197,10 +211,9 @@ class LanguageToolController extends TextEditingController {
       yield TextSpan(
         text: text.substring(mistake.offset, mistakeEndOffset),
         style: (style ?? const TextStyle()).merge(TextStyle(
-          color: _getMistakeColor(mistake.type),
           decoration: highlightStyle.decoration,
           decorationStyle: TextDecorationStyle.wavy,
-          decorationColor: _getMistakeColor(mistake.type),
+          decorationColor: Colors.black,
           decorationThickness: highlightStyle.mistakeLineThickness,
         )),
         recognizer: recognizer,
