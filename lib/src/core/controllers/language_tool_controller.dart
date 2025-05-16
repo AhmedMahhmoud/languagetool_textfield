@@ -195,7 +195,28 @@ class LanguageToolController extends TextEditingController {
           style: style,
         );
       }
+      final _onTap = TapGestureRecognizer()
+        ..onTapDown = (details) {
+          popupWidget?.show(
+            context,
+            mistake: mistake,
+            popupPosition: details.globalPosition,
+            controller: this,
+            onClose: (details) => _setCursorOnMistake(
+              context,
+              globalPosition: details.globalPosition,
+              style: style,
+            ),
+          );
 
+          // Set the cursor position on the mistake
+          _setCursorOnMistake(
+            context,
+            globalPosition: details.globalPosition,
+            style: style,
+          );
+        };
+      final Color mistakeColor = _getMistakeColor(mistake.type);
       // Create tap recognizer for the mistake
       final recognizer = TapGestureRecognizer()
         ..onTapDown = (details) => _handleMistakeTap(
@@ -208,17 +229,27 @@ class LanguageToolController extends TextEditingController {
 
       // Yield the mistake text with appropriate styling
       yield TextSpan(
-        text: text.substring(mistake.offset, mistakeEndOffset),
-        style: (style ?? const TextStyle()).merge(TextStyle(
-          decoration: highlightStyle.decoration,
-          decorationStyle: TextDecorationStyle.wavy,
-          decorationColor: Colors.black,
-          decorationThickness: highlightStyle.mistakeLineThickness,
-        )),
-        recognizer: recognizer,
+        children: [
+          TextSpan(
+            text: text.substring(
+              mistake.offset,
+              min(mistake.endOffset, text.length),
+            ),
+            mouseCursor: WidgetStateMouseCursor.textable,
+            style: style?.copyWith(
+              backgroundColor: mistakeColor.withOpacity(
+                highlightStyle.backgroundOpacity,
+              ),
+              decoration: highlightStyle.decoration,
+              decorationColor: mistakeColor,
+              decorationThickness: highlightStyle.mistakeLineThickness,
+            ),
+            recognizer: _onTap,
+          ),
+        ],
       );
 
-      currentOffset = mistakeEndOffset;
+      currentOffset = min(mistake.endOffset, text.length);
     }
 
     // Yield any remaining text
