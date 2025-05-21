@@ -84,10 +84,11 @@ class LanguageToolController extends TextEditingController {
 
   /// Controller constructor
   LanguageToolController({
+    String? text,
     this.highlightStyle = const HighlightStyle(),
     this.delay = Duration.zero,
     this.delayType = DelayType.debouncing,
-  }) {
+  }) : super(text: text) {
     _languageCheckService = _getLanguageCheckService();
   }
 

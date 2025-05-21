@@ -31,9 +31,10 @@ class LanguageToolClient {
       headers: _headers,
       body: {
         'text': text,
-        'language': language,
+        'language': 'auto',
         'enabledOnly': 'false',
-        'level': 'default',
+        'level': 'picky',
+        'enabledCategories': 'TYPOS,GRAMMAR,STYLE',
       },
     );
 
