@@ -192,6 +192,7 @@ class _LanguageToolTextFieldState extends State<LanguageToolTextField> {
 
             Widget childWidget = TextFormField(
               textAlign: widget.textAlign,
+              obscureText: false,
               textDirection: widget.textDirection ?? TextDirection.rtl,
               focusNode: _focusNode,
               controller: _languageToolController,
